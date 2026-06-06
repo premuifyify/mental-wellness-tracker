@@ -18,7 +18,9 @@ function loadEnvFile(filename) {
   const filepath = resolve(process.cwd(), filename);
   if (!existsSync(filepath)) return;
 
-  const lines = readFileSync(filepath, 'utf8').split(/\r?\n/);
+  // Strip UTF-8 BOM (﻿) that Windows editors sometimes prepend
+  const raw_content = readFileSync(filepath, 'utf8').replace(/^﻿/, '');
+  const lines = raw_content.split(/\r?\n/);
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#')) continue;
