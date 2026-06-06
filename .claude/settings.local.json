@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "PowerShell(Get-ChildItem \"f:\\\\Personal\\\\PromptsWar\\\\Frontend\\\\src\" -Recurse | ForEach-Object { $_.FullName })",
-      "PowerShell(Get-ChildItem \"f:\\\\Personal\\\\PromptsWar\\\\Frontend\\\\api\" | ForEach-Object { $_.FullName })"
-    ]
-  }
-}
