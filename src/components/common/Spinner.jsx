@@ -1,64 +1,17 @@
-/**
- * components/common/Spinner.jsx
- *
- * Reusable loading indicator.
- *  - size: 'sm' | 'md' | 'lg'
- *  - fullPage: centres the spinner in the viewport
- *
- * Usage:
- *   <Spinner />                    inline, medium
- *   <Spinner size="lg" fullPage /> centred full-viewport
- */
+export function Spinner({ size = 'md', className = '' }) {
+  const dim = { sm: 'w-4 h-4', md: 'w-8 h-8', lg: 'w-12 h-12' }[size] ?? 'w-8 h-8';
+  const border = { sm: 'border-2', md: 'border-[3px]', lg: 'border-4' }[size] ?? 'border-[3px]';
 
-const sizeMap = {
-  sm: '20px',
-  md: '36px',
-  lg: '56px',
-};
-
-function Spinner({ size = 'md', fullPage = false }) {
-  const dimension = sizeMap[size] || sizeMap.md;
-
-  const spinner = (
+  return (
     <div
       role="status"
       aria-label="Loading"
-      style={{
-        width:        dimension,
-        height:       dimension,
-        border:       '3px solid rgba(100, 108, 255, 0.2)',
-        borderTop:    '3px solid #646cff',
-        borderRadius: '50%',
-        animation:    'spin 0.7s linear infinite',
-      }}
+      className={`
+        ${dim} ${border} rounded-full
+        border-brand-200 dark:border-brand-900
+        border-t-brand-500 dark:border-t-brand-400
+        animate-spin ${className}
+      `}
     />
   );
-
-  // Keyframe injected inline — avoids a separate CSS file dependency.
-  const keyframes = <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>;
-
-  if (fullPage) {
-    return (
-      <div
-        style={{
-          display:        'flex',
-          justifyContent: 'center',
-          alignItems:     'center',
-          minHeight:      '60vh',
-        }}
-      >
-        {spinner}
-        {keyframes}
-      </div>
-    );
-  }
-
-  return (
-    <>
-      {spinner}
-      {keyframes}
-    </>
-  );
 }
-
-export default Spinner;
