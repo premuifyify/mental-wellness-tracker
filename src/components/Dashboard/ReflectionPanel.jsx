@@ -3,6 +3,7 @@ import { Copy, Check, Sparkles, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { SkeletonCard } from '../common/SkeletonCard.jsx';
 
+// Copies a text string to the clipboard and shows a temporary checkmark.
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
 
@@ -11,6 +12,7 @@ function CopyButton({ text }) {
       await navigator.clipboard.writeText(text);
       setCopied(true);
       toast.success('Reflection copied!');
+      // Reset the icon after 2s so the user can copy again if needed.
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error('Could not copy to clipboard.');
@@ -46,6 +48,8 @@ function Item({ label, text, emoji }) {
   );
 }
 
+// Trigger badge shows the detected stress pattern and its confidence percentage.
+// The confidence is produced by triggerDetector.js — not the AI model.
 function TriggerBadge({ trigger, confidence }) {
   const pct = Math.round(confidence * 100);
   return (
@@ -58,6 +62,8 @@ function TriggerBadge({ trigger, confidence }) {
 }
 
 export function ReflectionPanel({ checkIn, isLoading }) {
+  // Loading state — Gemini API call is in flight. Show skeleton with a pulsing
+  // sparkles icon so the user knows something is happening, not that it broke.
   if (isLoading) {
     return (
       <div>
@@ -73,8 +79,14 @@ export function ReflectionPanel({ checkIn, isLoading }) {
   }
 
   const { reflection, triggers, suggestions } = checkIn ?? {};
+
+  // Return null before AI data arrives — the panel simply doesn't mount,
+  // keeping the layout clean rather than showing an empty card.
   if (!reflection && !suggestions) return null;
 
+  // Concatenate all reflection fields into a single string for the copy button.
+  // Empty/undefined fields are filtered out so the copied text doesn't have
+  // blank lines from missing sections.
   const fullText = reflection
     ? [
         reflection.summary,
@@ -87,7 +99,7 @@ export function ReflectionPanel({ checkIn, isLoading }) {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* AI Reflection */}
+      {/* AI Reflection card */}
       {reflection && (
         <div className="rounded-2xl border border-brand-200 dark:border-brand-900/50 bg-gradient-to-br from-brand-50 to-accent-50 dark:from-brand-950/30 dark:to-accent-950/30 p-5">
           <div className="flex items-center justify-between mb-4">
@@ -100,26 +112,18 @@ export function ReflectionPanel({ checkIn, isLoading }) {
             <CopyButton text={fullText} />
           </div>
           <div className="space-y-3.5">
-            {reflection.summary && (
-              <Item label="Summary" emoji="💭" text={reflection.summary} />
-            )}
-            {reflection.encouragement && (
-              <Item label="Encouragement" emoji="💛" text={reflection.encouragement} />
-            )}
-            {reflection.focusSuggestion && (
-              <Item label="Focus tip" emoji="🎯" text={reflection.focusSuggestion} />
-            )}
-            {reflection.selfCareSuggestion && (
-              <Item label="Self-care" emoji="🌿" text={reflection.selfCareSuggestion} />
-            )}
-            {reflection.positiveReminder && (
-              <Item label="Remember" emoji="✨" text={reflection.positiveReminder} />
-            )}
+            {reflection.summary          && <Item label="Summary"       emoji="💭" text={reflection.summary} />}
+            {reflection.encouragement    && <Item label="Encouragement" emoji="💛" text={reflection.encouragement} />}
+            {reflection.focusSuggestion  && <Item label="Focus tip"     emoji="🎯" text={reflection.focusSuggestion} />}
+            {reflection.selfCareSuggestion && <Item label="Self-care"   emoji="🌿" text={reflection.selfCareSuggestion} />}
+            {reflection.positiveReminder && <Item label="Remember"      emoji="✨" text={reflection.positiveReminder} />}
           </div>
         </div>
       )}
 
-      {/* Stress triggers */}
+      {/* Stress triggers — detected by the client-side triggerDetector, not the AI.
+          The disclaimer "observations, not diagnoses" is intentional — we're not
+          a mental health tool and must not imply clinical assessment. */}
       {triggers && triggers.length > 0 && (
         <div className="rounded-2xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 p-4">
           <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-3">
@@ -136,22 +140,16 @@ export function ReflectionPanel({ checkIn, isLoading }) {
         </div>
       )}
 
-      {/* Wellness suggestions */}
+      {/* Wellness suggestions from the AI */}
       {suggestions && (
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">
             Wellness suggestions
           </p>
           <div className="space-y-3">
-            {suggestions.breakSuggestion && (
-              <Item label="Take a break" emoji="🛑" text={suggestions.breakSuggestion} />
-            )}
-            {suggestions.hydrationReminder && (
-              <Item label="Hydration" emoji="💧" text={suggestions.hydrationReminder} />
-            )}
-            {suggestions.tomorrowGoal && (
-              <Item label="Tomorrow's mini goal" emoji="🎯" text={suggestions.tomorrowGoal} />
-            )}
+            {suggestions.breakSuggestion    && <Item label="Take a break"          emoji="🛑" text={suggestions.breakSuggestion} />}
+            {suggestions.hydrationReminder  && <Item label="Hydration"             emoji="💧" text={suggestions.hydrationReminder} />}
+            {suggestions.tomorrowGoal       && <Item label="Tomorrow's mini goal"  emoji="🎯" text={suggestions.tomorrowGoal} />}
             {suggestions.quote && (
               <blockquote className="mt-4 pl-3 border-l-2 border-brand-300 dark:border-brand-700">
                 <p className="text-sm italic text-slate-600 dark:text-slate-400">

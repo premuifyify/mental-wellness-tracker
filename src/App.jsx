@@ -1,3 +1,8 @@
+// App root — composes the provider tree and renders the active view.
+//
+// View routing is done via a simple string-state switch (VIEWS constant) rather
+// than a URL router because the app is a single-page SPA with no deep links.
+// All navigation happens through setCurrentView() inside AppContext.
 import { Toaster }    from 'react-hot-toast';
 
 import { ThemeProvider }   from './context/ThemeContext.jsx';
@@ -12,10 +17,13 @@ import { Journal }         from './components/Journal/index.jsx';
 import { Achievements }    from './components/Achievements/index.jsx';
 import { VIEWS }           from './constants/index.js';
 
+// Separated from App so it can consume AppContext (providers must wrap consumers).
 function PageRouter() {
   const { currentView } = useApp();
 
   return (
+    // ErrorBoundary catches rendering errors in any child view without crashing
+    // the whole app — the user can press "Try again" to recover.
     <ErrorBoundary>
       {currentView === VIEWS.DASHBOARD    && <Dashboard />}
       {currentView === VIEWS.CHECKIN      && <CheckIn />}
@@ -28,6 +36,9 @@ function PageRouter() {
 
 export default function App() {
   return (
+    // ThemeProvider must be outermost so the `dark` class is applied to
+    // <html> before AppProvider or any child mounts — avoids flash of
+    // wrong theme on first paint.
     <ThemeProvider>
       <AppProvider>
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -36,6 +47,8 @@ export default function App() {
           <NavBar />
         </div>
 
+        {/* Toast notifications — positioned outside the main layout div so
+            they overlay everything regardless of scroll position. */}
         <Toaster
           position="top-center"
           toastOptions={{

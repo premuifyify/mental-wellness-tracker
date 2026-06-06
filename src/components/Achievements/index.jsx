@@ -2,6 +2,9 @@ import { useApp }                          from '../../context/AppContext.jsx';
 import { VIEWS }                            from '../../constants/index.js';
 import { getEarnedAchievements, getUnearnedAchievements } from '../../utils/achievements.js';
 
+// Renders a single achievement badge in either earned or locked state.
+// Locked badges are greyscale and 50% opacity to visually signal unavailability
+// while still giving the user a preview of what they can unlock.
 function AchievementBadge({ def, earned }) {
   return (
     <div
@@ -48,11 +51,11 @@ export function Achievements() {
   const earnedDefs   = getEarnedAchievements(earned);
   const unearnedDefs = getUnearnedAchievements(earned);
   const total        = earnedDefs.length + unearnedDefs.length;
+  // Progress percentage for the header bar
   const pct          = total > 0 ? Math.round((earnedDefs.length / total) * 100) : 0;
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-6 pb-28 space-y-6 animate-slide-up">
-      {/* Header */}
       <div>
         <h1 className="text-xl font-bold text-slate-900 dark:text-white">Achievements</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
@@ -60,7 +63,7 @@ export function Achievements() {
         </p>
       </div>
 
-      {/* Progress overview */}
+      {/* Progress summary card — shows overall completion, current streak, and total check-ins */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -80,7 +83,7 @@ export function Achievements() {
           />
         </div>
 
-        {/* Stats */}
+        {/* Three key stats at a glance */}
         <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
           <div className="text-center">
             <p className="text-2xl font-black text-slate-900 dark:text-white tabular-nums">{streak.current}</p>
@@ -97,7 +100,7 @@ export function Achievements() {
         </div>
       </div>
 
-      {/* Earned badges */}
+      {/* Earned badges — only shown when at least one exists */}
       {earnedDefs.length > 0 && (
         <section aria-label="Earned achievements">
           <h2 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
@@ -111,7 +114,7 @@ export function Achievements() {
         </section>
       )}
 
-      {/* Locked badges */}
+      {/* Locked badges — always shown so users know what to aim for */}
       {unearnedDefs.length > 0 && (
         <section aria-label="Locked achievements">
           <h2 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
@@ -125,7 +128,7 @@ export function Achievements() {
         </section>
       )}
 
-      {/* CTA if no check-ins */}
+      {/* CTA when the user has never checked in — encourages them to start */}
       {checkIns.length === 0 && (
         <div className="text-center py-4">
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">

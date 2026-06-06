@@ -1,7 +1,18 @@
+// Vercel Serverless Function — POST /api/wellness-companion
+//
+// Receives a check-in payload from the browser, builds a structured prompt,
+// calls the Gemini API, and returns parsed JSON with reflection + suggestions.
+//
+// The API key never leaves the server — it is read from process.env at runtime
+// and is NOT bundled into the frontend JS.
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+// System instruction is inlined into the prompt rather than a separate system
+// role because Gemini's generateContent API uses a single combined prompt.
+// The guidelines here prevent the model from acting as a therapist or making
+// diagnostic claims — important for student safety.
 const SYSTEM_INSTRUCTION = `You are ExamMind's wellness companion — a supportive, empathetic AI assistant for Indian students preparing for competitive exams like JEE, NEET, CUET, CAT, GATE, UPSC, and Board Exams.
 
 CRITICAL GUIDELINES:
@@ -20,6 +31,8 @@ You understand the unique pressures of Indian competitive exam preparation:
 - Syllabus pressure, mock test performance anxiety
 - Board exams and cut-off stress`;
 
+// Converts an exam date to days remaining — passed to the model so it can
+// tailor urgency in its response (e.g., "with 10 days to go...").
 function daysUntil(examDate) {
   if (!examDate) return null;
   const diff = new Date(examDate).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0);
@@ -34,12 +47,16 @@ export default async function handler(req, res) {
   const { mood, energy, stress, sleep, studyHours, emotion, exam, examDate, journal, burnout } =
     req.body ?? {};
 
+  // Validate the three numeric fields the prompt always references.
+  // Other fields are optional and handled gracefully in the context builder.
   if (typeof mood !== 'number' || typeof stress !== 'number' || typeof energy !== 'number') {
     return res.status(400).json({
       error: 'Invalid check-in data: mood, stress, and energy are required numbers.',
     });
   }
 
+  // Build a concise text summary of the check-in to inject into the prompt.
+  // Null entries are filtered out so the model doesn't see empty fields.
   const days = daysUntil(examDate);
   const context = [
     `Mood: ${mood}/10`,
@@ -56,6 +73,10 @@ export default async function handler(req, res) {
     .filter(Boolean)
     .join('\n');
 
+  // The prompt instructs the model to return ONLY JSON matching the exact schema
+  // below. The schema is repeated verbatim so the model can't hallucinate fields.
+  // Valid trigger names are explicitly listed to prevent the model from inventing
+  // trigger categories that don't exist in our TRIGGER_PATTERNS map.
   const prompt = `${SYSTEM_INSTRUCTION}
 
 ---
@@ -94,22 +115,26 @@ Return ONLY valid JSON.`;
     const result = await model.generateContent(prompt);
     const raw = result.response.text();
 
-    // Strip potential markdown code fences
+    // Strip markdown code fences that the model sometimes wraps JSON in
+    // despite the explicit instruction not to.
     const cleaned = raw
       .replace(/^```(?:json)?\s*/i, '')
       .replace(/\s*```\s*$/, '')
       .trim();
-    const jsonStr = cleaned.match(/\{[\s\S]*\}/)?.[0];
 
+    // Extract the JSON object — the regex handles any stray text before/after.
+    const jsonStr = cleaned.match(/\{[\s\S]*\}/)?.[0];
     if (!jsonStr) throw new Error('No JSON found in model response');
 
     const parsed = JSON.parse(jsonStr);
 
+    // Guard against a partial response — both top-level keys must be present.
     if (!parsed.reflection || !parsed.suggestions) {
       throw new Error('Incomplete response structure from model');
     }
 
-    // Sanitize triggers
+    // Sanitize triggers — the model sometimes returns non-array or malformed objects.
+    // Coerce to empty array and filter to valid shape before sending to the client.
     if (!Array.isArray(parsed.triggers)) parsed.triggers = [];
     parsed.triggers = parsed.triggers
       .filter(t => t && typeof t.trigger === 'string' && typeof t.confidence === 'number')
@@ -120,6 +145,8 @@ Return ONLY valid JSON.`;
     console.error('[wellness-companion] Error:', err.message);
     return res.status(500).json({
       error: 'Failed to generate wellness response',
+      // message is forwarded to the client so the frontend toast can show the
+      // real error (e.g., invalid API key, quota exceeded) during development.
       message: err.message,
     });
   }

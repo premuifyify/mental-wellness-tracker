@@ -1,3 +1,7 @@
+// Export utilities — converts check-in data to CSV or plain text and
+// triggers a browser file download without any server round-trip.
+
+// en-IN locale formats dates as "15 Jun 2025" which is natural for Indian users.
 function formatDate(dateStr) {
   if (!dateStr) return '';
   return new Date(dateStr).toLocaleDateString('en-IN', {
@@ -5,6 +9,8 @@ function formatDate(dateStr) {
   });
 }
 
+// RFC 4180 CSV escaping — wrap values that contain commas, quotes, or newlines
+// in double-quotes, and escape internal double-quotes by doubling them.
 function escapeCSV(value) {
   const str = String(value ?? '');
   if (str.includes(',') || str.includes('"') || str.includes('\n')) {
@@ -13,6 +19,8 @@ function escapeCSV(value) {
   return str;
 }
 
+// Creates a temporary anchor element to trigger the download, then removes it.
+// URL.revokeObjectURL frees the blob memory immediately after the click.
 function downloadFile(content, filename, mimeType) {
   const blob = new Blob([content], { type: mimeType });
   const url  = URL.createObjectURL(blob);
@@ -25,6 +33,12 @@ function downloadFile(content, filename, mimeType) {
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Exports all check-ins as a spreadsheet-compatible CSV file.
+ * Journal text is RFC-4180 escaped to handle multi-line entries.
+ *
+ * @param {Array} checkIns - array of check-in objects
+ */
 export function exportAsCSV(checkIns) {
   const headers = [
     'Date', 'Mood', 'Energy', 'Stress', 'Sleep (hrs)',
@@ -50,6 +64,12 @@ export function exportAsCSV(checkIns) {
   downloadFile(csv, 'examMind-journal.csv', 'text/csv;charset=utf-8;');
 }
 
+/**
+ * Exports all check-ins as a human-readable plain text file.
+ * One section per check-in separated by blank lines; suitable for printing.
+ *
+ * @param {Array} checkIns - array of check-in objects
+ */
 export function exportAsText(checkIns) {
   const sections = checkIns.map(ci => {
     const lines = [

@@ -1,5 +1,7 @@
 import { BURNOUT_META } from '../../utils/burnoutCalculator.js';
 
+// SVG circle circumference for a radius-42 circle — used to calculate
+// the strokeDasharray that fills the ring proportionally to the score.
 const RADIUS = 42;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
@@ -7,6 +9,8 @@ export function BurnoutCard({ burnout }) {
   if (!burnout) return null;
   const { risk, score } = burnout;
   const meta = BURNOUT_META[risk];
+
+  // strokeDash is how much of the circumference to fill — score/100 of the full circle.
   const strokeDash = (score / 100) * CIRCUMFERENCE;
 
   const strokeColor = {
@@ -28,17 +32,18 @@ export function BurnoutCard({ burnout }) {
         Burnout Risk
       </p>
 
-      {/* Circular progress */}
+      {/* Circular progress ring — aria-hidden because the text score below is
+          the accessible value; screen readers don't need the SVG arc. */}
       <div className="relative w-28 h-28" aria-hidden="true">
         <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-          {/* Background track */}
+          {/* Background track — full circle in muted color */}
           <circle
             cx="50" cy="50" r={RADIUS}
             fill="none"
             strokeWidth="8"
             className="stroke-slate-200 dark:stroke-slate-800"
           />
-          {/* Progress arc */}
+          {/* Progress arc — partial fill based on score percentage */}
           <circle
             cx="50" cy="50" r={RADIUS}
             fill="none"

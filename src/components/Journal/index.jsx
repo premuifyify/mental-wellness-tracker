@@ -11,6 +11,8 @@ const DATE_FMT = new Intl.DateTimeFormat('en-IN', {
   day: 'numeric', month: 'long', year: 'numeric', weekday: 'short',
 });
 
+// Pre-build a lookup from emotion ID to definition for O(1) access
+// inside JournalEntry rather than filtering EMOTIONS on every render.
 const EMOTION_MAP = Object.fromEntries(EMOTIONS.map(e => [e.id, e]));
 
 const BURNOUT_BADGE = {
@@ -32,6 +34,8 @@ function JournalEntry({ checkIn }) {
   const [expanded, setExpanded] = useState(false);
   const emotionDef = EMOTION_MAP[checkIn.emotion];
   const hasJournal = checkIn.journal?.trim().length > 0;
+  // Long journals are truncated at 180 chars to keep the list scannable.
+  // The user can expand individual entries with "Read more".
   const longJournal = hasJournal && checkIn.journal.trim().length > 180;
 
   return (
@@ -39,7 +43,7 @@ function JournalEntry({ checkIn }) {
       className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3 animate-fade-in"
       aria-label={`Journal entry for ${DATE_FMT.format(new Date(checkIn.date))}`}
     >
-      {/* Header */}
+      {/* Header row: date, emotion chip, exam badge, burnout badge */}
       <div className="flex items-start justify-between gap-2">
         <div>
           <time
@@ -69,7 +73,7 @@ function JournalEntry({ checkIn }) {
         </div>
       </div>
 
-      {/* Stats row */}
+      {/* Compact numeric stats row */}
       <div className="flex flex-wrap gap-x-3 gap-y-1">
         <ScoreChip label="Mood"   value={checkIn.mood}        />
         <ScoreChip label="Energy" value={checkIn.energy}      />
@@ -78,7 +82,7 @@ function JournalEntry({ checkIn }) {
         <ScoreChip label="Study"  value={checkIn.studyHours} max={20} />
       </div>
 
-      {/* Journal text */}
+      {/* Journal text with optional expand/collapse */}
       {hasJournal && (
         <div>
           <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
@@ -97,7 +101,7 @@ function JournalEntry({ checkIn }) {
         </div>
       )}
 
-      {/* AI reflection summary */}
+      {/* AI reflection summary — shown as a compact inline card when available */}
       {checkIn.reflection?.summary && (
         <div className="rounded-xl bg-brand-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-900/40 px-3 py-2">
           <p className="text-[10px] font-semibold text-brand-600 dark:text-brand-400 mb-1 uppercase tracking-wider">
@@ -116,6 +120,9 @@ export function Journal() {
   const { checkIns, setCurrentView } = useApp();
   const [query, setQuery] = useState('');
 
+  // Search across journal text, emotion, exam name, and AI reflection summary.
+  // Runs on every keystroke — checkIns is usually small (<365 entries) so
+  // no debounce is needed. useMemo avoids re-filtering on unrelated re-renders.
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return checkIns;
@@ -127,6 +134,7 @@ export function Journal() {
     );
   }, [checkIns, query]);
 
+  // Sort newest-first for the journal view — most recent entries are most relevant.
   const sorted = useMemo(
     () => [...filtered].sort((a, b) => new Date(b.date) - new Date(a.date)),
     [filtered],
@@ -146,7 +154,6 @@ export function Journal() {
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-6 pb-28 space-y-4 animate-slide-up">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900 dark:text-white">Journal</h1>
@@ -155,6 +162,7 @@ export function Journal() {
           </p>
         </div>
 
+        {/* Export buttons — only shown when there's data to export */}
         {checkIns.length > 0 && (
           <div className="flex gap-2">
             <button
@@ -177,7 +185,7 @@ export function Journal() {
         )}
       </div>
 
-      {/* Search */}
+      {/* Search bar — hidden when there are no entries yet */}
       {checkIns.length > 0 && (
         <div className="relative">
           <Search
@@ -213,7 +221,7 @@ export function Journal() {
         </div>
       )}
 
-      {/* Results */}
+      {/* Empty states */}
       {checkIns.length === 0 && (
         <EmptyState
           emoji="📓"

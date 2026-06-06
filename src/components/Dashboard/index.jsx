@@ -12,6 +12,8 @@ const DATE_FMT = new Intl.DateTimeFormat('en-IN', {
   weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
 });
 
+// Shows a countdown only when exam date is set AND within the next 365 days.
+// Beyond a year the countdown is more anxiety-inducing than motivating.
 function ExamCountdown({ examDate, exam }) {
   if (!examDate) return null;
   const days = Math.max(
@@ -45,12 +47,15 @@ function ExamCountdown({ examDate, exam }) {
 export function Dashboard() {
   const { todaysCheckIn, streak, checkIns, setCurrentView, aiLoadingId } = useApp();
 
+  // Only show the AI skeleton for the current check-in, not for any background
+  // re-fetches that may be happening for other entries (shouldn't occur, but
+  // this guard prevents false loading states).
   const isAiLoading = aiLoadingId !== null && todaysCheckIn?.id === aiLoadingId;
 
+  // Empty state — no check-in yet today. Show streak and a CTA.
   if (!todaysCheckIn) {
     return (
       <main className="max-w-2xl mx-auto px-4 py-6 pb-28">
-        {/* Header */}
         <div className="mb-6">
           <p className="text-xs text-slate-500 dark:text-slate-400">{DATE_FMT.format(new Date())}</p>
           <h1 className="text-xl font-bold text-slate-900 dark:text-white mt-1">
@@ -58,7 +63,7 @@ export function Dashboard() {
           </h1>
         </div>
 
-        {/* Streak */}
+        {/* Show streak even when no check-in today — motivates the user to maintain it. */}
         <StreakCard streak={streak} totalCheckIns={checkIns.length} />
 
         <EmptyState
@@ -90,7 +95,6 @@ export function Dashboard() {
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-6 pb-28 space-y-4 animate-slide-up">
-      {/* Header */}
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs text-slate-500 dark:text-slate-400">{DATE_FMT.format(new Date())}</p>
@@ -115,19 +119,19 @@ export function Dashboard() {
         </button>
       </div>
 
-      {/* Exam countdown */}
+      {/* Exam countdown — only renders when exam + date are both set */}
       {exam && examDate && <ExamCountdown examDate={examDate} exam={exam} />}
 
-      {/* Stats grid */}
+      {/* Quick stats grid — mood, energy, stress, sleep, study */}
       <QuickStats checkIn={todaysCheckIn} />
 
-      {/* Burnout + Streak */}
+      {/* Burnout and streak side by side on the same row */}
       <div className="grid grid-cols-2 gap-3">
         <BurnoutCard burnout={burnout} />
         <StreakCard streak={streak} totalCheckIns={checkIns.length} />
       </div>
 
-      {/* AI Reflection */}
+      {/* AI Reflection — shows skeleton while isAiLoading, nothing if no data yet */}
       <ReflectionPanel checkIn={todaysCheckIn} isLoading={isAiLoading} />
     </main>
   );

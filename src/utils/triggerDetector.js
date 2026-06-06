@@ -1,7 +1,17 @@
 /**
- * Detects likely stress triggers from journal text and check-in metrics.
- * Pattern-based — no AI involved.
- * Returns top triggers sorted by confidence, max 3.
+ * Detects likely stress triggers from journal text + check-in metrics.
+ * Fully client-side, pattern-based — no AI or network call involved.
+ *
+ * How confidence is calculated per trigger (max 1.0):
+ *   Keyword score  → up to 0.6 — (matched keywords / total keywords) × 0.6
+ *   Metric score   → up to 0.4 — +0.4 if the metric condition is true
+ *
+ * A trigger must score ≥ 0.15 to be included in results.
+ * Final output: top 3 triggers sorted by confidence descending.
+ *
+ * The 0.6 / 0.4 split means a trigger can appear from keywords alone
+ * (if ≥ ~25% of its keywords match) without needing a metric signal,
+ * and vice-versa (metric alone contributes 0.4 which is above the threshold).
  */
 
 const TRIGGER_PATTERNS = {
@@ -10,6 +20,7 @@ const TRIGGER_PATTERNS = {
       'sleep', 'tired', 'exhausted', 'insomnia', 'awake', 'fatigue',
       'rest', 'slept', 'drowsy', 'yawn', 'sleepy', 'no sleep',
     ],
+    // Metric fires when sleep is below the 6h healthy threshold
     metricCheck: ({ sleep }) => typeof sleep === 'number' && sleep < 6,
   },
   'Mock test performance': {
@@ -52,12 +63,24 @@ const TRIGGER_PATTERNS = {
       'burnout', 'burn out', 'done', 'give up', 'quit', 'anymore',
       "can't", 'no motivation', 'pointless', 'exhausted', 'empty',
     ],
+    // Both energy AND mood must be very low — single-metric dips are
+    // more likely fatigue or bad day than actual burnout.
     metricCheck: ({ energy, mood }) =>
       typeof energy === 'number' && typeof mood === 'number' &&
       energy <= 4 && mood <= 4,
   },
 };
 
+/**
+ * @param {Object} params
+ * @param {string} params.journal      - free-text journal entry (may be empty)
+ * @param {number} params.mood         - 1–10
+ * @param {number} params.stress       - 1–10
+ * @param {number} params.energy       - 1–10
+ * @param {number} params.sleep        - hours
+ * @param {number} params.studyHours   - hours
+ * @returns {{ trigger: string, confidence: number }[]} up to 3 items, sorted desc
+ */
 export function detectTriggers({ journal = '', mood, stress, energy, sleep, studyHours }) {
   const text   = journal.toLowerCase();
   const results = [];
@@ -65,19 +88,21 @@ export function detectTriggers({ journal = '', mood, stress, energy, sleep, stud
   for (const [trigger, { keywords, metricCheck }] of Object.entries(TRIGGER_PATTERNS)) {
     let confidence = 0;
 
-    // Keyword matching contributes up to 0.6
+    // Keyword matching — only runs when there's actual journal text.
+    // Substring matching (includes) catches "tired" inside "overtired", etc.
     if (text.trim().length > 0) {
       const matched = keywords.filter(kw => text.includes(kw)).length;
       confidence += (matched / keywords.length) * 0.6;
     }
 
-    // Metric conditions contribute up to 0.4
+    // Metric condition — wrapped in try/catch because partial check-in data
+    // (e.g., missing sleep field) would otherwise throw and discard results.
     try {
       if (metricCheck({ mood, stress, energy, sleep, studyHours })) {
         confidence += 0.4;
       }
     } catch {
-      // partial metrics — skip condition check
+      // partial metrics — skip metric check for this trigger
     }
 
     if (confidence >= 0.15) {
@@ -88,6 +113,8 @@ export function detectTriggers({ journal = '', mood, stress, energy, sleep, stud
     }
   }
 
+  // Sort descending and cap at 3 — showing more than 3 triggers at once
+  // would overwhelm the student rather than helping them focus.
   return results
     .sort((a, b) => b.confidence - a.confidence)
     .slice(0, 3);
